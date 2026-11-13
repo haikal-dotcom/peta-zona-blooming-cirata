@@ -1245,7 +1245,40 @@ BSS = skor Brier relatif terhadap klimatologi (positif berarti lebih baik dari k
     </tr>
   </tbody>
 </table></div>
-<h2>8. ConvLSTM (pembanding, Google Colab)</h2><p>Belum tersedia. Jalankan notebook <code>04_skrip/ConvLSTM_KJA_Cirata_Colab.ipynb</code> di Google Colab (GPU). Hasilnya tersimpan di <code>02_data_olahan/convlstm/</code> pada Drive, lalu halaman ini diperbarui. Catatan: ConvLSTM memprakirakan per dasarian (±10 hari) pada data komposit, sehingga dibandingkan dengan prakiraan 10 hari gradient boosting.</p>
+<h2>8. ConvLSTM (pembanding, Google Colab)</h2><p>ConvLSTM dilatih di sandbox (PyTorch CPU) dengan arsitektur Mahdiyasa dkk. (2026): urutan 6 dasarian memprakirakan dasarian berikutnya (±10 hari); galat hanya pada sel teramati; bobot kelas 1 dipilih pada validasi 2023; kalibrasi isotonik; data uji 44.038 sel-dasarian. prevalensi 8.0%.</p><table class="dataframe t">
+  <thead>
+    <tr style="text-align: right;">
+      <th>model</th>
+      <th>AUC</th>
+      <th>PR_AUC</th>
+      <th>Brier</th>
+      <th>keterangan</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>ConvLSTM</td>
+      <td>0.655</td>
+      <td>0.121</td>
+      <td>0.075</td>
+      <td>seed 0; antar-seed AUC 0.641–0.673, PR-AUC 0.117–0.125</td>
+    </tr>
+    <tr>
+      <td>Persistensi (NDCI terakhir)</td>
+      <td>0.670</td>
+      <td>0.139</td>
+      <td>–</td>
+      <td>sampel sama</td>
+    </tr>
+    <tr>
+      <td>Klimatologi sel-bulan</td>
+      <td>0.631</td>
+      <td>0.121</td>
+      <td>–</td>
+      <td>sampel sama</td>
+    </tr>
+  </tbody>
+</table><p>BSS terhadap klimatologi: 0.001; rata-rata lebar selang 95% MC dropout: 0.017. ConvLSTM tidak lebih baik daripada persistensi dan setara klimatologi, sejalan dengan hasil gradient boosting: arsitektur ruang-waktu yang lebih rumit tidak menambah kemampuan prediksi selama citra banyak bolong karena awan dan label masih berderau akibat sisa koreksi atmosfer.</p>
 <h2>9. Grafik</h2><figure><img src="gambar/zona_rawan_blooming.png" alt="Zona rawan blooming: (a) kelas frekuensi blooming 2016–2026; (b) titik panas Getis-Ord Gi*." loading="lazy"><figcaption>Zona rawan blooming: (a) kelas frekuensi blooming 2016–2026; (b) titik panas Getis-Ord Gi*.</figcaption></figure><figure><img src="gambar/model_roc.png" alt="Kurva ROC data uji 2024–2026 untuk nowcast, prakiraan 5 hari, dan prakiraan 10 hari." loading="lazy"><figcaption>Kurva ROC data uji 2024–2026 untuk nowcast, prakiraan 5 hari, dan prakiraan 10 hari.</figcaption></figure><figure><img src="gambar/model_kalibrasi.png" alt="Diagram kalibrasi prakiraan 5 hari sebelum dan sesudah regresi isotonik." loading="lazy"><figcaption>Diagram kalibrasi prakiraan 5 hari sebelum dan sesudah regresi isotonik.</figcaption></figure><figure><img src="gambar/model_kepentingan_variabel.png" alt="Kepentingan kelompok variabel (penurunan AUC saat kelompok diacak), prakiraan 5 hari." loading="lazy"><figcaption>Kepentingan kelompok variabel (penurunan AUC saat kelompok diacak), prakiraan 5 hari.</figcaption></figure><figure><img src="gambar/model_validasi_bergulir.png" alt="Validasi bergulir: model dilatih dengan seluruh tahun sebelum tahun uji." loading="lazy"><figcaption>Validasi bergulir: model dilatih dengan seluruh tahun sebelum tahun uji.</figcaption></figure><figure><img src="gambar/model_peta_peluang_uji.png" alt="Peluang blooming prakiraan 5 hari pada empat tanggal uji dan sel blooming teramati." loading="lazy"><figcaption>Peluang blooming prakiraan 5 hari pada empat tanggal uji dan sel blooming teramati.</figcaption></figure><figure><img src="gambar/model_sensitivitas.png" alt="Perubahan peluang rata-rata pada skenario iklim." loading="lazy"><figcaption>Perubahan peluang rata-rata pada skenario iklim.</figcaption></figure><figure><img src="gambar/validasi_koreksi_atmosfer.png" alt="Validasi citra terhadap data lapangan Wiranegara dkk. (2023)." loading="lazy"><figcaption>Validasi citra terhadap data lapangan Wiranegara dkk. (2023).</figcaption></figure>
 <h2>10. Batasan</h2><ul>
 <li>Blooming adalah anomali indeks klorofil relatif (NDCI), belum dikalibrasi ke konsentrasi klorofil-a µg/L; validasi lapangan terbatas pada 22 pasangan stasiun–citra.</li>
