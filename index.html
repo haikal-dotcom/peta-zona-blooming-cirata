@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Zona Rawan Blooming Cirata</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{--bg:#f6f7f9;--panel:#ffffff;--ink:#1f2933;--muted:#5f6b7a;--line:#d9dee5;--accent:#0b6e75}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#11161c;--panel:#1a2129;--ink:#e6eaef;--muted:#9aa6b2;--line:#2c3540;--accent:#4fb3ba}}
+:root[data-theme="dark"]{--bg:#11161c;--panel:#1a2129;--ink:#e6eaef;--muted:#9aa6b2;--line:#2c3540;--accent:#4fb3ba}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+header{padding:12px 16px;border-bottom:1px solid var(--line);background:var(--panel)}
+header h1{margin:0;font-size:18px}
+header p{margin:4px 0 0;color:var(--muted);font-size:13px}
+main{display:grid;grid-template-columns:1fr 340px;height:calc(100vh - 62px)}
+#peta{height:100%;min-height:420px}
+aside{border-left:1px solid var(--line);background:var(--panel);overflow-y:auto;padding:14px 16px}
+@media (max-width:860px){main{grid-template-columns:1fr;height:auto}#peta{height:62vh}aside{border-left:0;border-top:1px solid var(--line)}}
+label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+select,input[type=range]{width:100%}
+select{padding:6px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink)}
+.tgl{font-weight:600;font-size:15px;margin-top:4px}
+.kotak{border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:12px}
+.kotak h2{font-size:13px;margin:0 0 6px}
+.kecil{font-size:12px;color:var(--muted);line-height:1.45}
+table{border-collapse:collapse;width:100%;font-size:12px}
+td,th{border-bottom:1px solid var(--line);padding:4px 2px;text-align:left}
+.legenda{display:flex;height:10px;border-radius:3px;overflow:hidden;margin-top:6px}
+.legenda span{flex:1}
+.skala{display:flex;justify-content:space-between;font-size:11px;color:var(--muted)}
+svg text{fill:var(--muted);font-size:10px}
+button{padding:5px 10px;border:1px solid var(--line);border-radius:6px;background:var(--panel);color:var(--ink);cursor:pointer}
+</style>
+</head>
+<body>
+<header>
+  <h1>Zona Rawan dan Peluang Blooming Alga di Area KJA Waduk Cirata</h1>
+  <p id="sub">Model ruang-waktu berbasis Sentinel-2, ERA5-Land, dan CHIRPS · grid 250 m</p>
+  <p style="margin-top:6px;font-size:13px"><a href="kinerja.html">Kinerja &amp; validasi model</a> · <a href="unduh/peluang_blooming_cirata_2024_2026.csv">Unduh CSV peluang 2024–2026</a> · <a href="unduh/prakiraan_terakhir_cirata.geojson">Unduh GeoJSON prakiraan terakhir</a> · <a href="unduh/zona_rawan_blooming_cirata.csv">Unduh CSV zona rawan</a></p>
+</header>
+<main>
+  <div id="peta"></div>
+  <aside>
+    <label for="lapis">Lapisan</label>
+    <select id="lapis">
+      <option value="zona" selected>Zona rawan blooming (frekuensi 2016–2026)</option>
+      <option value="gi">Titik panas blooming (Getis-Ord Gi*)</option>
+      <option value="fk">Frekuensi blooming musim kemarau (Mei–Okt)</option>
+      <option value="fh">Frekuensi blooming musim hujan (Nov–Apr)</option>
+      <option value="h0">Peluang blooming – kondisi saat ini (nowcast)</option>
+      <option value="h5">Peluang blooming – prakiraan 5 hari</option>
+      <option value="h10">Peluang blooming – prakiraan 10 hari</option>
+      <option value="unc">Ketidakpastian prakiraan 5 hari (lebar selang 95%)</option>
+      <option value="risiko">Indeks keterpaparan risiko (peluang × kepadatan KJA)</option>
+      <option value="sk_dasar">Skenario iklim – dasar (prakiraan 5 hari terakhir)</option>
+      <option value="sk_kering">Skenario iklim – kering, panas, tenang (30%)</option>
+      <option value="sk_basah">Skenario iklim – basah, sejuk, berangin (30%)</option>
+      <option value="ndci">NDCI teramati (citra Sentinel-2)</option>
+      <option value="frek">Frekuensi blooming teramati 2016–2026</option>
+      <option value="kja">Kepadatan struktur KJA/PLTS (tahun terakhir)</option>
+    </select>
+    <label style="display:flex;gap:6px;align-items:center;color:var(--ink)"><input type="checkbox" id="tampilObs" checked> Tandai sel blooming teramati (citra ±2 hari)</label>
+    <div class="kecil" id="ketObs"></div>
+    <div id="kontrolTgl">
+      <label for="geser">Tanggal</label>
+      <input type="range" id="geser" min="0" max="0" value="0">
+      <div class="tgl" id="tgl">–</div>
+      <div style="display:flex;gap:6px;margin-top:6px"><button id="mundur">◀</button><button id="maju">▶</button><button id="terbaru">Terbaru</button></div>
+    </div>
+    <div class="kotak"><h2 id="judulLegenda">Legenda</h2><div class="legenda" id="legenda"></div><div class="skala" id="skala"></div></div>
+    <div class="kotak"><h2>Sel terpilih</h2><div id="infoSel" class="kecil">Klik sel pada peta untuk melihat deret waktunya.</div><div id="grafik"></div></div>
+    <div class="kotak"><h2>Kinerja model (data uji 2024–2026)</h2><div id="metrik" class="kecil"></div></div>
+    <div class="kotak"><h2>Catatan metode</h2><div class="kecil" id="catatan"></div></div>
+  </aside>
+</main>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const PAL=["#2c7bb6","#00a6ca","#00ccbc","#90eb9d","#ffff8c","#f9d057","#f29e2e","#e76818","#d7191c"];
+const PAL_KJA=["#f7f7f7","#d9d9d9","#bdbdbd","#969696","#737373","#525252","#252525"];
+let D,G,peta,lapisGrid,pilih=null;
+const $=id=>document.getElementById(id);
+function warna(v,min,max,pal){if(v==null||v<0)return null;const t=Math.max(0,Math.min(0.9999,(v-min)/(max-min)));return pal[Math.floor(t*pal.length)];}
+const TANPA_TGL=["frek","kja","sk_dasar","sk_kering","sk_basah","zona","gi","fk","fh"];
+const KATEG={zona:["#2c7bb6","#abd9e9","#fdae61","#d7191c","#d9d9d9"],gi:["#2166ac","#67a9cf","#d1e5f0","#f7f7f7","#fddbc7","#ef8a62","#b2182b","#d9d9d9"]};
+let lapisObs;
+function nilai(i){const L=$("lapis").value,t=+$("geser").value;
+  if(L==="zona")return D.zona[i];if(L==="gi")return D.gi[i];if(L==="fk")return D.fk[i];if(L==="fh")return D.fh[i];
+  if(L==="frek")return D.frek[i];if(L==="kja")return D.kja[i];
+  if(L.startsWith("sk_"))return D.skenario[L.slice(3)][i];
+  const a=(L==="ndci")?D.ndci[t]:D.p[L][t];if(!a)return null;const v=a[i];return v<0?null:v;}
+function skala(){const L=$("lapis").value;
+  if(L==="ndci")return[D.ndci_rentang[0],D.ndci_rentang[1],PAL,"NDCI","" ];
+  if(L==="frek"||L==="fk"||L==="fh")return[0,40,PAL,"Frekuensi blooming (% pengamatan)"+(L==="fk"?" – kemarau":L==="fh"?" – hujan":""),"%"];
+  if(L==="kja")return[0,40,PAL_KJA,"Proporsi piksel struktur (%)","%"];
+  if(L==="unc")return[0,40,PAL,"Lebar selang 95% peluang (poin %)",""];
+  if(L==="risiko")return[0,60,PAL,"Indeks keterpaparan risiko (0–100)",""];
+  return[0,40,PAL,"Peluang blooming terkalibrasi (%; skala 0–40, nilai >40 berwarna merah tua)","%"];}
+function gambarObs(){lapisObs.clearLayers();const Lp=$("lapis").value,t=+$("geser").value;
+  if(!$("tampilObs").checked||TANPA_TGL.includes(Lp)||Lp==="ndci"){$("ketObs").textContent="";return;}
+  if(!D.obs_ada[t]){$("ketObs").textContent="Tidak ada citra cerah dalam ±2 hari dari tanggal ini.";return;}
+  D.obs_bloom[t].forEach(i=>{const c=D.sel[i];L.circleMarker([c.lat,c.lon],{radius:3,color:"#000",weight:1,fillOpacity:0}).addTo(lapisObs);});
+  $("ketObs").textContent=D.obs_bloom[t].length+" sel blooming teramati (lingkaran hitam).";}
+function labelKat(L,v){return L==="zona"?D.zona_kelas[v]:D.gi_kelas[v];}
+function gambar(){const Lk=$("lapis").value;
+  if(KATEG[Lk]){lapisGrid.eachLayer(l=>{const i=l.feature.properties.i,v=nilai(i);
+      l.setStyle({fillColor:KATEG[Lk][v],fillOpacity:0.82,weight:pilih===i?2:0.2,color:pilih===i?"#000":"#555"});});
+    const kel=Lk==="zona"?D.zona_kelas:D.gi_kelas;const ada=new Set((Lk==="zona"?D.zona:D.gi));
+    $("judulLegenda").textContent=Lk==="zona"?"Zona rawan blooming (frekuensi blooming per sel)":"Titik panas/dingin Getis-Ord Gi* (tingkat kepercayaan)";
+    $("legenda").innerHTML="";$("legenda").style.display="none";
+    $("skala").innerHTML=kel.map((k,j)=>ada.has(j)?`<div style="display:flex;gap:6px;align-items:center;margin:2px 0"><span style="width:14px;height:12px;background:${KATEG[Lk][j]};border:1px solid #999;display:inline-block"></span>${k}${Lk==="zona"?["  (<5%)","  (5–10%)","  (10–20%)","  (≥20%)",""][j]:""}</div>`:"").join("");
+    $("skala").style.display="block";$("kontrolTgl").style.display="none";gambarObs();if(pilih!=null)infoSel(pilih);return;}
+  $("legenda").style.display="flex";$("skala").style.display="flex";
+  const[mn,mx,pal,jud,sat]=skala();
+  lapisGrid.eachLayer(l=>{const v=nilai(l.feature.properties.i);const c=warna(v,mn,mx,pal);
+    l.setStyle({fillColor:c||"#000",fillOpacity:c?0.78:0,weight:pilih===l.feature.properties.i?2:0.2,color:pilih===l.feature.properties.i?"#000":"#555"});});
+  $("judulLegenda").textContent=jud;$("legenda").innerHTML=pal.map(c=>`<span style="background:${c}"></span>`).join("");
+  $("skala").innerHTML=`<span>${mn}${sat}</span><span>${(mn+mx)/2}${sat}</span><span>${mx}${sat}</span>`;
+  const L=$("lapis").value;$("kontrolTgl").style.display=TANPA_TGL.includes(L)?"none":"block";
+  const t=+$("geser").value;$("tgl").textContent=(L==="ndci")?(D.ndci_tgl[t]||"–"):(D.tgl[t]+(D.prakiraan[t]?" (prakiraan)":""));
+  if(L.startsWith("sk_"))$("judulLegenda").textContent+=" · tanggal sasaran "+D.tgl_skenario;
+  gambarObs();
+  if(pilih!=null)infoSel(pilih);}
+function terakhirAda(){const L=$("lapis").value;if(L==="ndci")return D.ndci_tgl.length-1;const a=D.p[L];if(!a)return D.tgl.length-1;
+  for(let i=a.length-1;i>=0;i--)if(a[i])return i;return 0;}
+function aturGeser(){const L=$("lapis").value;const n=(L==="ndci")?D.ndci_tgl.length:D.tgl.length;$("geser").max=n-1;if(+$("geser").value>n-1)$("geser").value=n-1;}
+function infoSel(i){const s=D.sel[i];const L=/^h\d/.test($("lapis").value)?$("lapis").value:"h5";
+  const v=D.p[L].map(a=>a?a[i]:-1);const w=760,h=110;
+  const pts=v.map((y,k)=>y<0?null:[k/(v.length-1)*(w-30)+25,h-15-y/100*(h-25)]).filter(Boolean);
+  const path=pts.map((p,k)=>(k?"L":"M")+p[0].toFixed(1)+","+p[1].toFixed(1)).join("");
+  const t=+$("geser").value;const xt=t/(v.length-1)*(w-30)+25;
+  $("grafik").innerHTML=`<svg viewBox="0 0 ${w} ${h}" width="100%"><line x1="25" y1="${h-15}" x2="${w-5}" y2="${h-15}" stroke="currentColor" opacity=".3"/>
+   <text x="0" y="14">100%</text><text x="8" y="${h-15}">0%</text><path d="${path}" fill="none" stroke="var(--accent)" stroke-width="1.6"/>
+   <line x1="${xt}" y1="5" x2="${xt}" y2="${h-15}" stroke="#d7191c" stroke-dasharray="3 3"/><text x="25" y="${h-2}">${D.tgl[0]}</text><text x="${w-70}" y="${h-2}">${D.tgl[D.tgl.length-1]}</text></svg>`;
+  $("infoSel").innerHTML=`Sel <b>${s.sel}</b> · ${s.lat.toFixed(4)}°, ${s.lon.toFixed(4)}°<br>Zona: <b>${D.zona_kelas[D.zona[i]]}</b> · ${D.gi_kelas[D.gi[i]]} · ${D.n_obs[i]} pengamatan citra<br>Frekuensi blooming kemarau ${D.fk[i]>=0?D.fk[i]+"%":"–"}, hujan ${D.fh[i]>=0?D.fh[i]+"%":"–"}<br>Jarak ke muara Citarum ${s.jc.toFixed(1)} km · kepadatan KJA ${D.kja[i]>=0?D.kja[i]+"%":"–"} · frekuensi blooming ${D.frek[i]>=0?D.frek[i]+"%":"–"}<br>Grafik: peluang ${L==="h0"?"nowcast":"prakiraan "+L.slice(1)+" hari"} sepanjang periode.`;}
+fetch("data.json").then(r=>r.json()).then(d=>{D=d;return fetch("grid.geojson")}).then(r=>r.json()).then(g=>{G=g;
+  $("sub").textContent=D.subjudul;$("catatan").innerHTML=D.catatan;$("metrik").innerHTML=D.metrik_html;
+  peta=L.map("peta",{zoomControl:true});
+  const citra=L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",{maxZoom:18,attribution:"Citra: Esri, Maxar, Earthstar Geographics"});
+  const osm=L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap"});
+  citra.addTo(peta);L.control.layers({"Citra satelit":citra,"OpenStreetMap":osm},{},{position:"topright"}).addTo(peta);
+  L.control.scale({imperial:false}).addTo(peta);
+  lapisGrid=L.geoJSON(G,{style:{weight:0.2,color:"#555"},onEachFeature:(f,l)=>{l.on("click",()=>{pilih=f.properties.i;gambar();});
+    l.bindTooltip(()=>{const Lt=$("lapis").value,v=nilai(f.properties.i);if(KATEG[Lt])return labelKat(Lt,v);
+      return v==null?"tidak ada data":(""+v+(Lt==="ndci"||Lt==="unc"||Lt==="risiko"?"":"%"));},{sticky:true});}}).addTo(peta);
+  peta.fitBounds(lapisGrid.getBounds());
+  lapisObs=L.layerGroup().addTo(peta);$("tampilObs").onchange=gambarObs;
+  aturGeser();$("geser").value=terakhirAda();gambar();
+  $("lapis").onchange=()=>{aturGeser();if(+$("geser").value>terakhirAda())$("geser").value=terakhirAda();gambar();};$("geser").oninput=gambar;
+  $("mundur").onclick=()=>{$("geser").value=Math.max(0,+$("geser").value-1);gambar();};
+  $("maju").onclick=()=>{$("geser").value=Math.min(+$("geser").max,+$("geser").value+1);gambar();};
+  $("terbaru").onclick=()=>{$("geser").value=terakhirAda();gambar();};
+});
+</script>
+</body>
+</html>
